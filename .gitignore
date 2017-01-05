@@ -45,3 +45,10 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+*.xml
+*.data-00000-of-00001
+*.iml
+*.pyc
+*.tfrecords
+*.meta
+*.index
