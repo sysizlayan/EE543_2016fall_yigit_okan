@@ -1,14 +1,16 @@
 import tensorflow as tf
 import numpy as np
 import tflearn
+import matplotlib.pyplot as plt
 from tflearn.layers.conv import conv_2d, max_pool_2d
 from tflearn.layers.core import input_data, dropout, fully_connected
 from tflearn.layers.estimator import regression
 from dataRead import read_dataset
 
-
 input_tf = input("Create TF Records? [y/n] ")
 batch_size = 250
+
+
 def write_tfrecords(classified_list, output_location, batch_size=batch_size):
     iteration=0
     writer = None
@@ -62,6 +64,7 @@ def read_and_decode(filename_queue):
 def get_all_records(FILE,n_image, n_class):
 
     total_image = np.zeros((n_image, 100, 100, 1),dtype=np.uint8)
+    total_image1 = np.zeros((n_image, 100, 100, 1), dtype=np.uint8)
     total_label = []
     with tf.device('/cpu:0'):
         with tf.Session() as sess:
@@ -81,13 +84,14 @@ def get_all_records(FILE,n_image, n_class):
                 tempLabel = (n_class - l - 1) * [0.] + [1.] + l * [0.]
                 labels.append(tempLabel)
                 total_image[i] = (np.ones((100,100,1),np.float32)-example/255)
-            batchXX, batchYY = sess.run(
-                [tf.constant(total_image), tf.constant(labels)])
+                total_image1[i] = example
+            batchXX, batchYY , batchReal= sess.run(
+                [tf.constant(total_image), tf.constant(labels), tf.constant(total_image1)])
             coord.request_stop()
             coord.join(threads)
-        return batchXX,batchYY
+        return batchXX,batchYY, batchReal
 dataset_location = "./firstDataSet"
-number_of_images, number_of_training_images, number_of_validation_images, number_of_classes, classified_input_list, classified_validation_list, dataset = read_dataset(dataset_location)#read the dataset
+number_of_images, number_of_training_images, number_of_validation_images, number_of_classes, classified_input_list, classified_validation_list, available_classes = read_dataset(dataset_location)#read the dataset
 
 if (input_tf == "y" or input_tf == "Y"):
     write_tfrecords(classified_input_list, "./output/training-images/train")
@@ -95,9 +99,9 @@ if (input_tf == "y" or input_tf == "Y"):
 else:
     print("====Skipping writing TF records====")
 
-X, Y = get_all_records("./output/training-images/",
+X, Y , realImage= get_all_records("./output/training-images/",
                        number_of_training_images, number_of_classes)
-test_x, test_y = get_all_records("./output/validation-images/",
+test_x, test_y, realTest = get_all_records("./output/validation-images/",
                                  number_of_validation_images, number_of_classes)
 
 
@@ -123,13 +127,32 @@ convnet = fully_connected(convnet, 2048, activation='relu')
 convnet = fully_connected(convnet, number_of_classes, activation='softmax')
 convnet = regression(convnet, optimizer='adam', learning_rate=0.001, loss='categorical_crossentropy', name='targets')
 
-model = tflearn.DNN(convnet)
-model.fit({'input': X}, {'targets': Y}, n_epoch=5,snapshot_step=500, show_metric=True, run_id='caltechTrainTest')
+model = tflearn.DNN(convnet,tensorboard_verbose=0,tensorboard_dir=".\\OUTCONV\\")
+#model.fit({'input': X}, {'targets': Y}, n_epoch=500, validation_set=({'input': test_x}, {'targets': test_y}), snapshot_step=500, show_metric=True, run_id='caltech101Train')
 #model.fit({'input': test_x}, {'targets': test_y}, validation_set=({'input': X}, {'targets': Y}), n_epoch=30,snapshot_step=500, show_metric=True, run_id='caltechValid')
-model.save('./asdmodel.tfl')
+#model.save('./convModel.tfl')
 
-#model.load('./asdmodel1.tfl')
+model.load('./convModel.tfl')
 
-print(np.round(model.predict(X[0:1]) [0]))
+print("PREDICTION ", "\t\t\t", "ACTUAL")
+# Compare original images with their reconstructions
+for i in range(int(number_of_training_images)):
+    prediction = np.round(model.predict([X[i]])[0])
+    t=0
+    for k in range(0,number_of_classes):
+        if(prediction[k]==1):
+            break
+        else:
+            t+=1
 
-print(Y[0])
+    predictionLabel = number_of_classes-t-1
+    actual=Y[i]
+    t = 0
+    for k in range(0, number_of_classes):
+        if (actual[k] == 1):
+            break
+        else:
+            t += 1
+
+    actualLabel = number_of_classes - t - 1
+    print(available_classes[predictionLabel], "\t\t\t" ,available_classes[actualLabel])
