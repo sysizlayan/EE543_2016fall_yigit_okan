@@ -1,2 +1,2 @@
-model_checkpoint_path: "asdmodel.tfl"
-all_model_checkpoint_paths: "asdmodel.tfl"
+model_checkpoint_path: "MLPModel.tfl"
+all_model_checkpoint_paths: "MLPModel.tfl"

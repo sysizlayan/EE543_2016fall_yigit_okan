@@ -1,2 +1,2 @@
-model_checkpoint_path: "autoEncoder.tfl"
-all_model_checkpoint_paths: "autoEncoder.tfl"
+model_checkpoint_path: "autoEncoder256-1000All.tfl"
+all_model_checkpoint_paths: "autoEncoder256-1000All.tfl"
