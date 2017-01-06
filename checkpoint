@@ -1,2 +1,2 @@
-model_checkpoint_path: "MLPModel.tfl"
-all_model_checkpoint_paths: "MLPModel.tfl"
+model_checkpoint_path: "convModelNew.tfl"
+all_model_checkpoint_paths: "convModelNew.tfl"

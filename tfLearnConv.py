@@ -105,8 +105,8 @@ test_x, test_y, realTest = get_all_records("./output/validation-images/",
                                  number_of_validation_images, number_of_classes)
 
 
-#X = X.reshape([-1, 100, 100, 1])
-#test_x = test_x.reshape([-1, 100, 100, 1])
+X = X.reshape([-1, 100, 100, 1])
+test_x = test_x.reshape([-1, 100, 100, 1])
 
 convnet = input_data(shape=[None, 100, 100, 1], name='input')
 
@@ -127,17 +127,17 @@ convnet = fully_connected(convnet, 2048, activation='relu')
 convnet = fully_connected(convnet, number_of_classes, activation='softmax')
 convnet = regression(convnet, optimizer='adam', learning_rate=0.001, loss='categorical_crossentropy', name='targets')
 
-model = tflearn.DNN(convnet,tensorboard_verbose=0,tensorboard_dir=".\\OUTCONV\\")
+model = tflearn.DNN(convnet)#,tensorboard_verbose=0,tensorboard_dir=".\\OUTCONV\\")
 #model.fit({'input': X}, {'targets': Y}, n_epoch=500, validation_set=({'input': test_x}, {'targets': test_y}), snapshot_step=500, show_metric=True, run_id='caltech101Train')
-#model.fit({'input': test_x}, {'targets': test_y}, validation_set=({'input': X}, {'targets': Y}), n_epoch=30,snapshot_step=500, show_metric=True, run_id='caltechValid')
-#model.save('./convModel.tfl')
+#model.fit({'input': X}, {'targets': Y}, n_epoch=1000,snapshot_step=500, show_metric=False, run_id='caltechValid')
+#model.save('./convModelNew.tfl')
 
-model.load('./convModel.tfl')
+model.load('./convModelNew.tfl')
 
 print("PREDICTION ", "\t\t\t", "ACTUAL")
 # Compare original images with their reconstructions
-for i in range(int(number_of_training_images)):
-    prediction = np.round(model.predict([X[i]])[0])
+for i in range(int(number_of_validation_images)):
+    prediction = np.round(model.predict([test_x[i]])[0])
     t=0
     for k in range(0,number_of_classes):
         if(prediction[k]==1):
@@ -146,7 +146,7 @@ for i in range(int(number_of_training_images)):
             t+=1
 
     predictionLabel = number_of_classes-t-1
-    actual=Y[i]
+    actual=test_y[i]
     t = 0
     for k in range(0, number_of_classes):
         if (actual[k] == 1):
