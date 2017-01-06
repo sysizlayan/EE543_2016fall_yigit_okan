@@ -1,10 +1,13 @@
 import tensorflow as tf
+import cv2
 import numpy as np
 import tflearn
+import matplotlib.pyplot as plt
+
 from tflearn.layers.conv import conv_2d, max_pool_2d
 from tflearn.layers.core import input_data, dropout, fully_connected
 from tflearn.layers.estimator import regression
-from dataRead import read_dataset
+from dataRead import read_dataset,one_hot_to_index
 
 batch_size = 250
 input_tf = input("Create TF Records? [y/n] ")
@@ -56,6 +59,7 @@ def read_and_decode(filename_queue):
 def get_all_records(FILE,n_image, n_class):
 
     total_image = np.zeros((n_image, 100, 100, 1),dtype=np.uint8)
+    total_image1 = np.zeros((n_image, 100, 100, 1), dtype=np.uint8)
     total_label = []
     with tf.device('/cpu:0'):
         with tf.Session() as sess:
@@ -75,12 +79,13 @@ def get_all_records(FILE,n_image, n_class):
                 tempLabel = (n_class - l - 1) * [0.] + [1.] + l * [0.]
                 labels.append(tempLabel)
                 total_image[i] = (np.ones((100,100,1),np.float32)-example/255)
-            batchXX, batchYY = sess.run([tf.constant(total_image), tf.constant(labels)])
+                total_image1[i] = example
+            batchXX, batchYY, batchReal = sess.run([tf.constant(total_image), tf.constant(labels), tf.constant(total_image1)])
             coord.request_stop()
             coord.join(threads)
-        return batchXX,batchYY
+        return batchXX,batchYY, batchReal
 dataset_location = "./firstDataSet"
-number_of_images, number_of_training_images, number_of_validation_images, number_of_classes, classified_input_list, classified_validation_list, dataset = read_dataset(dataset_location)#read the dataset
+number_of_images, number_of_training_images, number_of_validation_images, number_of_classes, classified_input_list, classified_validation_list, available_classes = read_dataset(dataset_location)#read the dataset
 
 if (input_tf == "y" or input_tf == "Y"):
     write_tfrecords(classified_input_list, "./output/training-images/train")
@@ -88,14 +93,12 @@ if (input_tf == "y" or input_tf == "Y"):
 else:
     print("====Skipping writing TF records====")
 
-X, Y = get_all_records("./output/training-images/",number_of_training_images, number_of_classes)
-#test_x, test_y = get_all_records("./output/validation-images/",number_of_validation_images, number_of_classes)
+X, Y , RealIMG= get_all_records("./output/training-images/",number_of_training_images, number_of_classes)
+test_x, test_y, asdn = get_all_records("./output/validation-images/",number_of_validation_images, number_of_classes)
 
 
 X = X.reshape([-1, 10000])
-
-#test_x = test_x.reshape([-1, 10000])
-
+test_x = test_x.reshape([-1, 10000])
 convnet = input_data(shape=[None, 10000], name='input')
 
 '''convnet = conv_2d(convnet, 24, 2, activation='relu')
@@ -115,14 +118,51 @@ convnet = fully_connected(convnet, 1024, activation='relu')
 convnet = fully_connected(convnet, number_of_classes, activation='softmax')
 convnet = regression(convnet, optimizer='adam', learning_rate=0.0001, loss='categorical_crossentropy', name='targets')
 
-model = tflearn.DNN(convnet, tensorboard_verbose=1, checkpoint_path='./mldModel_CHPT')
-model.fit({'input': X}, {'targets': Y}, n_epoch=100, snapshot_epoch=True, show_metric=True, run_id='caltechMLPHighEpoch1')
-#model.fit({'input': test_x}, {'targets': test_y}, validation_set=({'input': X}, {'targets': Y}), n_epoch=30,snapshot_step=500, show_metric=True, run_id='caltechValid')
-model.save('./asdmodel.tfl')
+model = tflearn.DNN(convnet, tensorboard_verbose=0,tensorboard_dir=".\\OUTMLP\\")
+#model.fit({'input': X}, {'targets': Y}, n_epoch=100, snapshot_epoch=True, show_metric=True, run_id='caltechMLPHighEpoch1')
+#model.fit({'input': X}, {'targets': Y}, validation_set=({'input': test_x}, {'targets': test_y}), n_epoch=200,snapshot_step=500, show_metric=True, run_id='caltech101MLPP')
+#model.save('./MLPModel.tfl')
+model.load('./MLPModel.tfl')
 
-#model.restore('./asdmodel1.tfl')
-#model.fit({'input': X}, {'targets': Y}, n_epoch=100, snapshot_epoch=True, show_metric=True, run_id='caltechMLPHighEpoch2')
-#model.save('./asdmodel2.tfl')
-print(np.round(model.predict(X[9:10]) [0]))
+print("PREDICTION ", "\t\t\t", "ACTUAL")
+# Compare original images with their reconstructions
+for i in range(int(number_of_training_images)):
+    prediction = np.round(model.predict([X[i]])[0])
+    t=0
+    for k in range(0,number_of_classes):
+        if(prediction[k]==1):
+            break
+        else:
+            t+=1
 
-print(Y[0])
+    predictionLabel = number_of_classes-t-1
+    actual=Y[i]
+    t = 0
+    for k in range(0, number_of_classes):
+        if (actual[k] == 1):
+            break
+        else:
+            t += 1
+
+    actualLabel = number_of_classes - t - 1
+    print(available_classes[predictionLabel], "\t\t\t" ,available_classes[actualLabel])
+# Compare original images with their reconstructions
+'''f, a = plt.subplots(1, 10, figsize=(10, 2))
+for i in range(10):
+    prediction = np.round(model.predict([X[i]])[0])
+    for sayi in range(number_of_classes):
+        if(prediction[sayi]<0.01):
+            prediction[sayi]=0.
+        else:
+            prediction[sayi]=1.
+    prediction=np.array(prediction,dtype=np.int32)
+    m = max(a)
+    predictionLabel=number_of_classes-[i for i, j in enumerate(a) if j == m][0]-1
+    #predictionLabel = one_hot_to_index(prediction,number_of_classes)
+    actual=Y[i]
+    actualLabel=one_hot_to_index(actual,number_of_classes)
+    a[i].imshow(np.reshape(RealIMG[i], (100, 100)), cmap='gray')
+    print(available_classes[predictionLabel])
+f.show()
+plt.draw()
+plt.waitforbuttonpress()'''

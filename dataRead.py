@@ -20,6 +20,7 @@ def read_dataset(dataset_location):
         image_count = len(os.listdir(dataset_location + "/" + i))
         # the number of items in path
         print(index, "\t", i, ":", image_count)
+
         dataset[i] = [image_count, index]
         index += 1
     
@@ -77,8 +78,14 @@ def read_dataset(dataset_location):
     print("Total number of validation images: ", number_of_validation_images)
     print("Total number of images:", number_of_images)
 
-    return number_of_images, number_of_training_images, number_of_validation_images, number_of_classes, classified_input_list, classified_validation_list, dataset
+    return number_of_images, number_of_training_images, number_of_validation_images, number_of_classes, classified_input_list, classified_validation_list, available_classes
 
+def one_hot_to_index(in_list,n_class):
+    for i in range(n_class):
+        if(in_list[i]==1):
+            return n_class-i-1
+    return n_class-1
 
 #read_dataset("./firstDataSet")
 #print("Success!")
+#print(one_hot_to_index(np.array([0,0,0,1,0,0,0,0,0])))
